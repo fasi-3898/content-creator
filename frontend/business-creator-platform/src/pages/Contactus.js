@@ -1,11 +1,11 @@
-
-
 // src/pages/ContactUs.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import girlCreator from '../assets/images/girl_creator.jpg';
 import Layout from '../components/Layout';
 import { keyframes } from '@emotion/react';
+import PropTypes from 'prop-types';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import {
   Container,
   TextField,
@@ -23,7 +23,8 @@ import {
   Slide,
   useTheme,
   Grow,
-  useMediaQuery
+  useMediaQuery,
+  useScrollTrigger
 } from '@mui/material';
 import { useInView } from 'react-intersection-observer';
 import {
@@ -42,32 +43,81 @@ import {
 import BusinessForm from '../components/forms/BusinessForm';
 import CreatorForm from '../components/forms/CreatorForm';
 
-function TabPanel({ children, value, index, sx, ...other }) {
-  const isActive = value === index;
-  
+function CustomTabPanel(props) {
+  const { children, value, index, ...other } = props;
+
   return (
-    <Box
+    <div
       role="tabpanel"
-      hidden={!isActive}
-      id={`contact-tabpanel-${index}`}
-      aria-labelledby={`contact-tab-${index}`}
-      sx={{ 
-        width: '100%', 
-        ...sx 
-      }}
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      <Fade in={isActive} timeout={800} unmountOnExit>
-        <Box sx={{ height: '100%' }}>
-          {children}
-        </Box>
-      </Fade>
-    </Box>
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
   );
 }
 
+
+// Custom hook for scroll trigger
+function useScrollAnimation(threshold = 300) {
+  const trigger = useScrollTrigger({
+    disableHysteresis: true,
+    threshold: threshold,
+  });
+  
+  return trigger;
+}
+
+CustomTabPanel.propTypes = {
+  children: PropTypes.node,
+  index: PropTypes.number.isRequired,
+  value: PropTypes.number.isRequired,
+};
+
 function ContactUs() {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  
   const [tabValue, setTabValue] = useState(0);
+
+  // Handle both query parameters and URL hash
+  useEffect(() => {
+    const formType = searchParams.get('form');
+    const hash = window.location.hash;
+    
+    console.log('🔍 DEBUG - Current URL:', window.location.href);
+    console.log('🔍 DEBUG - URL Hash:', hash);
+    console.log('🔍 DEBUG - Form parameter:', formType);
+
+    // Priority: URL Hash > Query Parameter > Default
+    if (hash === '#creator-form' || formType === 'creator') {
+      setTabValue(1);
+      console.log('✅ Set tab to Creator form');
+    } else if (hash === '#business-form' || formType === 'business') {
+      setTabValue(0);
+      console.log('✅ Set tab to Business form');
+    } else {
+      setTabValue(0);
+      console.log('⚡ Defaulting to Business form');
+    }
+
+    // Scroll to form section if hash exists
+    if (hash && (hash === '#business-form' || hash === '#creator-form')) {
+      setTimeout(() => {
+        const formSection = document.getElementById('contact-forms-section');
+        if (formSection) {
+          formSection.scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 500);
+    }
+  }, [searchParams, location]);
+
+  const scrollTriggered = useScrollAnimation(200);
   const [businessFormData, setBusinessFormData] = useState({
     fullName: '',
     business: '',
@@ -85,7 +135,6 @@ function ContactUs() {
     readyForCollabs: false,
   });
 
-  // Keep this one - it's correctly inside the component
   const { ref: formRef, inView: formInView } = useInView({
     threshold: 0.3,
     triggerOnce: true,
@@ -94,6 +143,7 @@ function ContactUs() {
   const [status, setStatus] = useState({ type: '', message: '' });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   // Stats data
   const stats = [
     { number: '150+', label: 'Active Creators' },
@@ -117,6 +167,8 @@ function ContactUs() {
     setTabValue(newValue);
     setStatus({ type: '', message: '' });
   };
+
+  // Remove the duplicate state: const [value, setValue] = React.useState(0);
 
   const handleBusinessChange = (e) => {
     setBusinessFormData({ ...businessFormData, [e.target.name]: e.target.value });
@@ -270,58 +322,194 @@ function ContactUs() {
           <Grid item xs={12} md={6}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {/* Why Connect With Us Card */}
-              <Box
-                sx={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '25px',
-                  p: 4,
-                }}
-              >
-                <Typography variant="h4" gutterBottom sx={{ color: '#ffde22', fontWeight: 'bold', mb: 3 }}>
-                  Why Connect With Us?
-                </Typography>
-                
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
-                  <BusinessCenter sx={{ color: '#ffde22', mr: 2, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-                      For Businesses
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Transform your digital presence with our expert marketing strategies and 
-                      connect with top-tier creators who align with your brand values.
-                    </Typography>
+              <Slide in={scrollTriggered} timeout={2000} direction="up">
+                <Box
+                  sx={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '25px',
+                    p: 4,
+                    position: 'relative',
+                    zIndex: 1,
+                    transition: 'all 0.5s ease-in-out',
+                    transform: 'scale(1)',
+                    cursor: 'pointer',
+                    // '&:hover': {
+                    //   top: 0,
+                    //   left: 0,
+                    //   width: '90vw',
+                    //   height: '60vh',
+                    //   zIndex: 9999,
+                    //   transform: 'scale(1)',
+                    //   borderRadius: '0px',
+                    //   p: 6,
+                    //   display: 'flex',
+                    //   flexDirection: 'column',
+                    //   justifyContent: 'center',
+                    //   alignItems: 'center',
+                    //   background: 'linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 100%)',
+                    //   backdropFilter: 'blur(20px)',
+                    //   border: '2px solid rgba(255,222,34,0.3)',
+                    //   boxShadow: '0 0 50px rgba(255,222,34,0.2)',
+                    // }
+                  }}
+                >
+                  <Typography 
+                    variant="h4" 
+                    textAlign="center" 
+                    gutterBottom 
+                    sx={{ 
+                      color: '#ffde22', 
+                      fontWeight: 'bold', 
+                      mb: 3,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        fontSize: '3rem',
+                        mb: 6
+                      }
+                    }}
+                  >
+                    Why Connect With Us?
+                  </Typography>
+                  
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      mb: 3,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                        mb: 4
+                      }
+                    }}
+                  >
+                    <BusinessCenter sx={{ 
+                      color: '#ffde22', 
+                      mr: 2, 
+                      mt: 0.5,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        fontSize: '2.5rem'
+                      }
+                    }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ 
+                        color: 'white', 
+                        mb: 1,
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.5rem'
+                        }
+                      }}>
+                        For Businesses
+                      </Typography>
+                      <Typography variant="body1" sx={{ 
+                        color: 'rgba(255,255,255,0.8)',
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.2rem',
+                          color: 'rgba(255,255,255,0.9)'
+                        }
+                      }}>
+                        Transform your digital presence with our expert marketing strategies and 
+                        connect with top-tier creators who align with your brand values.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      mb: 3,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                        mb: 4
+                      }
+                    }}
+                  >
+                    <Person sx={{ 
+                      color: '#ffde22', 
+                      mr: 2, 
+                      mt: 0.5,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        fontSize: '2.5rem'
+                      }
+                    }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ 
+                        color: 'white', 
+                        mb: 1,
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.5rem'
+                        }
+                      }}>
+                        For Creators
+                      </Typography>
+                      <Typography variant="body1" sx={{ 
+                        color: 'rgba(255,255,255,0.8)',
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.2rem',
+                          color: 'rgba(255,255,255,0.9)'
+                        }
+                      }}>
+                        Grow your audience and brand with exclusive collaboration opportunities, 
+                        monetize your content, and access premium brand partnerships.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start',
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        transform: 'scale(1.05)'
+                      }
+                    }}
+                  >
+                    <Email sx={{ 
+                      color: '#ffde22', 
+                      mr: 2, 
+                      mt: 0.5,
+                      transition: 'all 0.5s ease-in-out',
+                      '&:hover': {
+                        fontSize: '2.5rem'
+                      }
+                    }} />
+                    <Box>
+                      <Typography variant="h6" sx={{ 
+                        color: 'white', 
+                        mb: 1,
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.5rem'
+                        }
+                      }}>
+                        24/7 Support
+                      </Typography>
+                      <Typography variant="body1" sx={{ 
+                        color: 'rgba(255,255,255,0.8)',
+                        transition: 'all 0.5s ease-in-out',
+                        '&:hover': {
+                          fontSize: '1.2rem',
+                          color: 'rgba(255,255,255,0.9)'
+                        }
+                      }}>
+                        Our dedicated team is always available to help you with any queries, 
+                        technical support, or collaboration guidance you might need.
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
-                  <Person sx={{ color: '#ffde22', mr: 2, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-                      For Creators
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Grow your audience and brand with exclusive collaboration opportunities, 
-                      monetize your content, and access premium brand partnerships.
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <Email sx={{ color: '#ffde22', mr: 2, mt: 0.5 }} />
-                  <Box>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 1 }}>
-                      24/7 Support
-                    </Typography>
-                    <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Our dedicated team is always available to help you with any queries, 
-                      technical support, or collaboration guidance you might need.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
+              </Slide>
 
               {/* Additional Info Card */}
               <Box
@@ -333,7 +521,7 @@ function ContactUs() {
                   p: 4,
                 }}
               >
-                <Typography variant="h4" gutterBottom sx={{ color: '#ffde22', fontWeight: 'bold', mb: 3 }}>
+                <Typography in={scrollTriggered} timeout={2000} direction="up" variant="h4" textAlign="center" gutterBottom sx={{ color: '#ffde22', fontWeight: 'bold', mb: 3 }}>
                   Our Success Stories
                 </Typography>
                 
@@ -362,7 +550,7 @@ function ContactUs() {
           </Grid>
 
           {/* Update the forms section: */}
-          <Grid item xs={12} md={6} ref={formRef}>
+          <Grid item xs={12} md={6} ref={formRef} id="contact-forms-section">
             <Slide in={formInView} direction="up" timeout={1000}>
               <Paper
                 sx={{
@@ -408,24 +596,25 @@ function ContactUs() {
                   />
                 </Tabs>
 
-                {/* Forms Container */}
-                <Box sx={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
-                  <TabPanel value={tabValue} index={0} sx={{ flex: 1, display: 'flex' }}>
+                {/* Tab Panels - Use tabValue here */}
+                <CustomTabPanel value={tabValue} index={0}>
+                  <Box sx={{ height: '100%' }}>
                     <BusinessForm 
                       formData={businessFormData}
                       onChange={handleBusinessChange}
                       onSubmit={handleBusinessSubmit}
                     />
-                  </TabPanel>
-
-                  <TabPanel value={tabValue} index={1} sx={{ flex: 1, display: 'flex' }}>
+                  </Box>
+                </CustomTabPanel>
+                <CustomTabPanel value={tabValue} index={1}>
+                  <Box sx={{ height: '100%' }}>
                     <CreatorForm 
                       formData={creatorFormData}
                       onChange={handleCreatorChange}
                       onSubmit={handleCreatorSubmit}
                     />
-                  </TabPanel>
-                </Box>
+                  </Box>
+                </CustomTabPanel>
               </Paper>
             </Slide>
 

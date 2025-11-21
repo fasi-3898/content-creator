@@ -77,7 +77,6 @@ const Header = ({
           backgroundColor: transparent ? 'transparent' : 'background.paper',
           backdropFilter: 'none', // Remove blur effect
           boxShadow: 'none',
-          borderBottom: transparent ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
           height: height,
           transition: 'all 0.3s ease',
         }}
